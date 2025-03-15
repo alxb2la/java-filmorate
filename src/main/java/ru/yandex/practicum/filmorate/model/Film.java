@@ -1,12 +1,21 @@
 package ru.yandex.practicum.filmorate.model;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
+
+import java.time.LocalDate;
 
 /**
- * Film.
+ * Класс—модель данных приложения, дающий описание объекту фильм.
  */
-@Getter
-@Setter
+@Value
+@EqualsAndHashCode(of = {"id", "name", "releaseDate"})
+@ToString
+@RequiredArgsConstructor(staticName = "of")
 public class Film {
+    long id;
+    String name;
+    @ToString.Exclude
+    String description;
+    LocalDate releaseDate;
+    int duration;
 }
