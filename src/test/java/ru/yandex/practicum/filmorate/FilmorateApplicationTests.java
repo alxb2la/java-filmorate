@@ -10,6 +10,7 @@ import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.User;
 
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -27,11 +28,12 @@ class FilmorateApplicationTests {
 
     @Test
     void shouldAddNewCorrectFilm() {
-        Film film = Film.of(0,
+        Film film = Film.of(0L,
                 "Film name",
                 "Film description",
                 LocalDate.of(1995, 5, 20),
-                120);
+                120,
+                new HashSet<>());
 
         ResponseEntity<Film> entity = template.postForEntity("/films", film, Film.class);
         assertEquals(HttpStatus.OK, entity.getStatusCode());
@@ -48,11 +50,12 @@ class FilmorateApplicationTests {
 
     @Test
     void shouldUpdateCorrectFilmAndGetAllFilms() {
-        Film film = Film.of(1,
+        Film film = Film.of(1L,
                 "Film name111",
                 "Film description111",
                 LocalDate.of(2005, 3, 22),
-                100);
+                100,
+                new HashSet<>());
 
         template.put("/films", film);
 
@@ -92,11 +95,12 @@ class FilmorateApplicationTests {
 
     @Test
     void shouldAddNewCorrectUser() {
-        User user = User.of(0,
+        User user = User.of(0L,
                 "User name",
                 "123@mail.com",
                 "qwerty12345",
-                LocalDate.of(1990, 12, 12));
+                LocalDate.of(1990, 12, 12),
+                new HashSet<>());
 
         ResponseEntity<User> entity = template.postForEntity("/users", user, User.class);
         assertEquals(HttpStatus.OK, entity.getStatusCode());
@@ -113,11 +117,12 @@ class FilmorateApplicationTests {
 
     @Test
     void shouldUpdateCorrectUserAndGetAllUsers() {
-        User user = User.of(1,
+        User user = User.of(1L,
                 "User name111",
                 "321@mail.ca",
                 "qwe123",
-                LocalDate.of(2000, 2, 4));
+                LocalDate.of(2000, 2, 4),
+                new HashSet<>());
 
         template.put("/users", user);
 
