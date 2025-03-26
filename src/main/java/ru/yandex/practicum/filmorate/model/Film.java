@@ -3,6 +3,7 @@ package ru.yandex.practicum.filmorate.model;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.util.Set;
 
 /**
  * Класс—модель данных приложения, дающий описание объекту фильм.
@@ -12,10 +13,11 @@ import java.time.LocalDate;
 @ToString
 @RequiredArgsConstructor(staticName = "of")
 public class Film {
-    long id;
+    Long id;
     String name;
     @ToString.Exclude
     String description;
     LocalDate releaseDate;
     int duration;
+    Set<Long> likes;
 }

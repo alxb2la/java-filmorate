@@ -3,6 +3,7 @@ package ru.yandex.practicum.filmorate.model;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.util.Set;
 
 /**
  * Класс—модель данных приложения, дающий описание объекту пользователь.
@@ -12,9 +13,10 @@ import java.time.LocalDate;
 @ToString
 @RequiredArgsConstructor(staticName = "of")
 public class User {
-    long id;
+    Long id;
     String name;
     String email;
     String login;
     LocalDate birthday;
+    Set<Long> friends;
 }
