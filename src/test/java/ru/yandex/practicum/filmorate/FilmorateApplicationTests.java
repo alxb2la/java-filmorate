@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @Import({UserDbStorage.class, UserRowMapper.class, GenreDbStorage.class, GenreRowMapper.class,
         MpaRatingDbStorage.class, MpaRatingRowMapper.class, FilmDbStorage.class, FilmRowMapper.class,
         MpaRatingService.class})
-class FilmoRateApplicationTests {
+class FilmorateApplicationTests {
     private final UserDbStorage userDbStorage;
     private final FilmDbStorage filmDbStorage;
     private final GenreDbStorage genreDbStorage;
