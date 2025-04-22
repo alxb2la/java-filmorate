@@ -1,160 +1,241 @@
 package ru.yandex.practicum.filmorate;
 
+import lombok.RequiredArgsConstructor;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.*;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.annotation.DirtiesContext;
+import ru.yandex.practicum.filmorate.dal.FilmDbStorage;
+import ru.yandex.practicum.filmorate.dal.GenreDbStorage;
+import ru.yandex.practicum.filmorate.dal.MpaRatingDbStorage;
+import ru.yandex.practicum.filmorate.dal.UserDbStorage;
+import ru.yandex.practicum.filmorate.dal.mappers.FilmRowMapper;
+import ru.yandex.practicum.filmorate.dal.mappers.GenreRowMapper;
+import ru.yandex.practicum.filmorate.dal.mappers.MpaRatingRowMapper;
+import ru.yandex.practicum.filmorate.dal.mappers.UserRowMapper;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.model.Genre;
+import ru.yandex.practicum.filmorate.model.MpaRating;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.service.MpaRatingService;
 
 import java.time.LocalDate;
-import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@JdbcTest
+@AutoConfigureTestDatabase
+@RequiredArgsConstructor(onConstructor_ = @Autowired)
+@Import({UserDbStorage.class, UserRowMapper.class, GenreDbStorage.class, GenreRowMapper.class,
+        MpaRatingDbStorage.class, MpaRatingRowMapper.class, FilmDbStorage.class, FilmRowMapper.class,
+        MpaRatingService.class})
 class FilmorateApplicationTests {
-    @Autowired
-    private TestRestTemplate template;
+    private final UserDbStorage userDbStorage;
+    private final FilmDbStorage filmDbStorage;
+    private final GenreDbStorage genreDbStorage;
+    private final MpaRatingDbStorage mpaRatingDbStorage;
 
-    @Test
-    void contextLoads() {
-    }
-
-    // Film tests
-
-    @Test
-    void shouldAddNewCorrectFilm() {
-        Film film = Film.of(0L,
-                "Film name",
-                "Film description",
-                LocalDate.of(1995, 5, 20),
-                120,
-                new HashSet<>());
-
-        ResponseEntity<Film> entity = template.postForEntity("/films", film, Film.class);
-        assertEquals(HttpStatus.OK, entity.getStatusCode());
-
-        Film createdFilm = entity.getBody();
-        assertEquals(1, createdFilm.getId());
-        assertEquals("Film name", createdFilm.getName());
-        assertEquals("Film description", createdFilm.getDescription());
-        assertEquals(LocalDate.of(1995, 5, 20), createdFilm.getReleaseDate());
-        assertEquals(120, createdFilm.getDuration());
-
-        assertEquals(1, template.getForObject("/films", List.class).size());
-    }
-
-    @Test
-    void shouldUpdateCorrectFilmAndGetAllFilms() {
-        Film film = Film.of(1L,
-                "Film name111",
-                "Film description111",
-                LocalDate.of(2005, 3, 22),
-                100,
-                new HashSet<>());
-
-        template.put("/films", film);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        ResponseEntity<List<Film>> entity = template.exchange("/films", HttpMethod.GET, new HttpEntity<>(headers),
-                new ParameterizedTypeReference<List<Film>>() {
-                });
-
-        assertEquals(HttpStatus.OK, entity.getStatusCode());
-        assertEquals(MediaType.APPLICATION_JSON, entity.getHeaders().getContentType());
-
-        List<Film> films = entity.getBody();
-        assertEquals(1, films.get(0).getId());
-        assertEquals("Film name111", films.get(0).getName());
-        assertEquals("Film description111", films.get(0).getDescription());
-        assertEquals(LocalDate.of(2005, 3, 22), films.get(0).getReleaseDate());
-        assertEquals(100, films.get(0).getDuration());
-    }
-
-    @Test
-    void testEmptyBodyRequestForFilmsPostMethod() {
-        ResponseEntity<String> entity1 = template.postForEntity("/films", "", String.class);
-        assertEquals(HttpStatus.UNSUPPORTED_MEDIA_TYPE, entity1.getStatusCode());
-
-        entity1 = template.postForEntity("/films", "{}", String.class);
-        assertEquals(HttpStatus.UNSUPPORTED_MEDIA_TYPE, entity1.getStatusCode());
-
-        ResponseEntity<Film> entity2 = template.postForEntity("/films", "", Film.class);
-        assertEquals(HttpStatus.UNSUPPORTED_MEDIA_TYPE, entity2.getStatusCode());
-
-        entity2 = template.postForEntity("/films", "{}", Film.class);
-        assertEquals(HttpStatus.UNSUPPORTED_MEDIA_TYPE, entity2.getStatusCode());
-    }
-
-    // User tests
-
-    @Test
-    void shouldAddNewCorrectUser() {
-        User user = User.of(0L,
+    @BeforeEach
+    void updateDb() {
+        User user = User.of(
+                0L,
                 "User name",
-                "123@mail.com",
-                "qwerty12345",
+                "Email@mail.com",
+                "qwerty",
                 LocalDate.of(1990, 12, 12),
-                new HashSet<>());
+                Set.of()
+        );
+        userDbStorage.addUser(user);
 
-        ResponseEntity<User> entity = template.postForEntity("/users", user, User.class);
-        assertEquals(HttpStatus.OK, entity.getStatusCode());
-
-        User createdUser = entity.getBody();
-        assertEquals(1, createdUser.getId());
-        assertEquals("User name", createdUser.getName());
-        assertEquals("123@mail.com", createdUser.getEmail());
-        assertEquals("qwerty12345", createdUser.getLogin());
-        assertEquals(LocalDate.of(1990, 12, 12), createdUser.getBirthday());
-
-        assertEquals(1, template.getForObject("/users", List.class).size());
+        MpaRating mpa = MpaRating.of(1, "G");
+        Film film = Film.of(
+                0L,
+                "Film name",
+                "asdfasdfsad sadfasdfsadf",
+                LocalDate.of(2001, 4, 5),
+                100,
+                Set.of(),
+                Set.of(),
+                mpa
+        );
+        filmDbStorage.addFilm(film);
     }
 
     @Test
-    void shouldUpdateCorrectUserAndGetAllUsers() {
-        User user = User.of(1L,
-                "User name111",
-                "321@mail.ca",
-                "qwe123",
-                LocalDate.of(2000, 2, 4),
-                new HashSet<>());
-
-        template.put("/users", user);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        ResponseEntity<List<User>> entity = template.exchange("/users", HttpMethod.GET, new HttpEntity<>(headers),
-                new ParameterizedTypeReference<List<User>>() {
-                });
-
-        assertEquals(HttpStatus.OK, entity.getStatusCode());
-        assertEquals(MediaType.APPLICATION_JSON, entity.getHeaders().getContentType());
-
-        List<User> users = entity.getBody();
-        assertEquals(1, users.get(0).getId());
-        assertEquals("User name111", users.get(0).getName());
-        assertEquals("321@mail.ca", users.get(0).getEmail());
-        assertEquals("qwe123", users.get(0).getLogin());
-        assertEquals(LocalDate.of(2000, 2, 4), users.get(0).getBirthday());
+    @DirtiesContext
+    public void testFindUserById() {
+        User gUser = userDbStorage.getUserById(1L);
+        assertThat(gUser).hasFieldOrPropertyWithValue("id", 1L);
+        assertThat(gUser).hasFieldOrPropertyWithValue("name", "User name");
+        assertThat(gUser).hasFieldOrPropertyWithValue("email", "Email@mail.com");
+        assertThat(gUser).hasFieldOrPropertyWithValue("login", "qwerty");
+        assertThat(gUser).hasFieldOrPropertyWithValue("birthday", LocalDate.of(1990, 12, 12));
+        assertThat(gUser).hasFieldOrPropertyWithValue("friends", Set.of());
     }
 
     @Test
-    void testEmptyBodyRequestForUsersPostMethod() {
-        ResponseEntity<String> entity1 = template.postForEntity("/users", "", String.class);
-        assertEquals(HttpStatus.UNSUPPORTED_MEDIA_TYPE, entity1.getStatusCode());
+    @DirtiesContext
+    public void testUpdateUser() {
+        User newUser = User.of(
+                1L,
+                "User name 2",
+                "Email123@mail.com",
+                "qwerty123",
+                LocalDate.of(1992, 1, 11),
+                Set.of()
+        );
+        User upUser = userDbStorage.updateUser(newUser);
+        assertThat(upUser).hasFieldOrPropertyWithValue("id", 1L);
+        assertThat(upUser).hasFieldOrPropertyWithValue("name", "User name 2");
+        assertThat(upUser).hasFieldOrPropertyWithValue("email", "Email123@mail.com");
+        assertThat(upUser).hasFieldOrPropertyWithValue("login", "qwerty123");
+        assertThat(upUser).hasFieldOrPropertyWithValue("birthday", LocalDate.of(1992, 1, 11));
+        assertThat(upUser).hasFieldOrPropertyWithValue("friends", Set.of());
+    }
 
-        entity1 = template.postForEntity("/users", "{}", String.class);
-        assertEquals(HttpStatus.UNSUPPORTED_MEDIA_TYPE, entity1.getStatusCode());
+    @Test
+    @DirtiesContext
+    public void testGetAllUsers() {
+        List<User> users = userDbStorage.getAllUsers();
+        assertFalse(users.isEmpty());
+    }
 
-        ResponseEntity<User> entity2 = template.postForEntity("/users", "", User.class);
-        assertEquals(HttpStatus.UNSUPPORTED_MEDIA_TYPE, entity2.getStatusCode());
+    @Test
+    @DirtiesContext
+    public void testAddFriendAndDeleteFriend() {
+        User user = User.of(
+                0L,
+                "User name 5",
+                "Email4523@mail.com",
+                "123qwerty123",
+                LocalDate.of(1988, 2, 4),
+                Set.of()
+        );
+        User aUser = userDbStorage.addUser(user);
+        userDbStorage.addFriend(1L, aUser.getId());
+        List<User> friends = userDbStorage.getAllFriendsById(1L);
+        assertEquals(1, friends.size());
+        assertThat(friends.get(0)).hasFieldOrPropertyWithValue("id", aUser.getId());
 
-        entity2 = template.postForEntity("/users", "{}", User.class);
-        assertEquals(HttpStatus.UNSUPPORTED_MEDIA_TYPE, entity2.getStatusCode());
+        userDbStorage.removeFriend(1L, aUser.getId());
+        List<User> emptyFriends = userDbStorage.getAllFriendsById(1L);
+        assertTrue(emptyFriends.isEmpty());
+    }
+
+    @Test
+    @DirtiesContext
+    public void testGetAllGenres() {
+        List<Genre> genres = genreDbStorage.getAllGenres();
+        assertEquals(6, genres.size());
+        assertEquals("Комедия", genres.get(0).getName());
+        assertEquals("Драма", genres.get(1).getName());
+        assertEquals("Мультфильм", genres.get(2).getName());
+        assertEquals("Триллер", genres.get(3).getName());
+        assertEquals("Документальный", genres.get(4).getName());
+        assertEquals("Боевик", genres.get(5).getName());
+    }
+
+    @Test
+    @DirtiesContext
+    public void testGetGenreById() {
+        Genre genre = genreDbStorage.getGenreById(1);
+        assertEquals("Комедия", genre.getName());
+        genre = genreDbStorage.getGenreById(2);
+        assertEquals("Драма", genre.getName());
+        genre = genreDbStorage.getGenreById(3);
+        assertEquals("Мультфильм", genre.getName());
+        genre = genreDbStorage.getGenreById(4);
+        assertEquals("Триллер", genre.getName());
+        genre = genreDbStorage.getGenreById(5);
+        assertEquals("Документальный", genre.getName());
+        genre = genreDbStorage.getGenreById(6);
+        assertEquals("Боевик", genre.getName());
+    }
+
+    @Test
+    @DirtiesContext
+    public void testGetAllMpaRatings() {
+        List<MpaRating> mpas = mpaRatingDbStorage.getAllMpaRatings();
+        assertEquals(5, mpas.size());
+        assertEquals("G", mpas.get(0).getName());
+        assertEquals("PG", mpas.get(1).getName());
+        assertEquals("PG-13", mpas.get(2).getName());
+        assertEquals("R", mpas.get(3).getName());
+        assertEquals("NC-17", mpas.get(4).getName());
+    }
+
+    @Test
+    @DirtiesContext
+    public void testGetMpaRatingById() {
+        MpaRating mpa = mpaRatingDbStorage.getMpaRatingById(1);
+        assertEquals("G", mpa.getName());
+        mpa = mpaRatingDbStorage.getMpaRatingById(2);
+        assertEquals("PG", mpa.getName());
+        mpa = mpaRatingDbStorage.getMpaRatingById(3);
+        assertEquals("PG-13", mpa.getName());
+        mpa = mpaRatingDbStorage.getMpaRatingById(4);
+        assertEquals("R", mpa.getName());
+        mpa = mpaRatingDbStorage.getMpaRatingById(5);
+        assertEquals("NC-17", mpa.getName());
+    }
+
+    @Test
+    @DirtiesContext
+    public void testFindFilmById() {
+        Film gFilm = filmDbStorage.getFilmById(1L);
+        assertThat(gFilm).hasFieldOrPropertyWithValue("id", 1L);
+        assertThat(gFilm).hasFieldOrPropertyWithValue("name", "Film name");
+        assertThat(gFilm).hasFieldOrPropertyWithValue("description", "asdfasdfsad sadfasdfsadf");
+        assertThat(gFilm).hasFieldOrPropertyWithValue("releaseDate", LocalDate.of(2001, 4, 5));
+        assertThat(gFilm).hasFieldOrPropertyWithValue("duration", 100);
+        assertEquals(1, gFilm.getMpa().getId());
+    }
+
+    @Test
+    @DirtiesContext
+    public void testUpdateFilm() {
+        MpaRating mpa = MpaRating.of(2, "PG");
+        Film newFilm = Film.of(
+                1L,
+                "Film name 2",
+                "asdfasdfsad sadfasdfsadf asdadadas",
+                LocalDate.of(2011, 3, 2),
+                110,
+                Set.of(),
+                Set.of(),
+                mpa
+        );
+        Film upFilm = filmDbStorage.updateFilm(newFilm);
+        assertThat(upFilm).hasFieldOrPropertyWithValue("id", 1L);
+        assertThat(upFilm).hasFieldOrPropertyWithValue("name", "Film name 2");
+        assertThat(upFilm).hasFieldOrPropertyWithValue("description", "asdfasdfsad sadfasdfsadf asdadadas");
+        assertThat(upFilm).hasFieldOrPropertyWithValue("releaseDate", LocalDate.of(2011, 3, 2));
+        assertThat(upFilm).hasFieldOrPropertyWithValue("duration", 110);
+        assertEquals(2, upFilm.getMpa().getId());
+    }
+
+    @Test
+    @DirtiesContext
+    public void testGetAllFilms() {
+        List<Film> films = filmDbStorage.getAllFilms();
+        assertFalse(films.isEmpty());
+    }
+
+    @Test
+    @DirtiesContext
+    public void testAddLikeAndDeleteLike() {
+        filmDbStorage.addLike(1L, 1L);
+        Film gFilm = filmDbStorage.getFilmById(1L);
+        assertEquals(1, gFilm.getLikes().size());
+
+        filmDbStorage.removeLike(1L, 1L);
+        gFilm = filmDbStorage.getFilmById(1L);
+        assertTrue(gFilm.getLikes().isEmpty());
     }
 }

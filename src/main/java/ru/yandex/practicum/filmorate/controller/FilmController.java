@@ -1,5 +1,6 @@
 package ru.yandex.practicum.filmorate.controller;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.service.FilmService;
@@ -24,6 +25,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/films")
+@Slf4j
 public class FilmController {
     private final FilmService filmService;
 
@@ -34,36 +36,43 @@ public class FilmController {
 
     @PostMapping
     public Film addFilm(@RequestBody Film film) {
+        log.info("Запрос на добавление фильма в приложение");
         return filmService.addFilm(film);
     }
 
     @PutMapping
     public Film updateFilm(@RequestBody Film film) {
+        log.info("Запрос на обновление данных фильма");
         return filmService.updateFilm(film);
     }
 
     @GetMapping
     public List<Film> getAllFilms() {
+        log.info("Запрос на получение списка всех фильмов");
         return filmService.getAllFilms();
     }
 
     @GetMapping("/{id}")
     public Film getFilmById(@PathVariable Long id) {
+        log.info("Запрос на получение фильма по ID");
         return filmService.getFilmById(id);
     }
 
     @PutMapping("/{id}/like/{userId}")
     public void addLike(@PathVariable Long id, @PathVariable Long userId) {
+        log.info("Запрос на добаление лайка к фильму по ID пользователя");
         filmService.addLike(id, userId);
     }
 
     @DeleteMapping("{id}/like/{userId}")
     public void removeLike(@PathVariable Long id, @PathVariable Long userId) {
+        log.info("Запрос на удаление лайка у фильма по ID пользователя");
         filmService.removeLike(id, userId);
     }
 
     @GetMapping("/popular")
     public List<Film> getTopFilms(@RequestParam(defaultValue = "10") int count) {
+        log.info("Запрос на получение списка n-лучших фильмов по кол-ву лайков");
         return filmService.getTopFilms(count);
     }
 }

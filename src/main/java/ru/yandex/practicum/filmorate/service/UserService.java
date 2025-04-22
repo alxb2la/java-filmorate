@@ -3,9 +3,10 @@ package ru.yandex.practicum.filmorate.service;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.storage.user.UserStorage;
+import ru.yandex.practicum.filmorate.storage.UserStorage;
+import ru.yandex.practicum.filmorate.validation.UserValidation;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -26,11 +27,61 @@ public class UserService {
     }
 
     public User addUser(User user) {
-        return userStorage.addUser(user);
+        UserValidation.validate(user);
+        // Проверка поля friends
+        Set<Long> validFriends;
+        if (user.getFriends() == null) {
+            validFriends = Set.of();
+        } else {
+            validFriends = user.getFriends();
+        }
+        // Замена пустого имени на логин
+        String validName;
+        if (user.getName() == null || user.getName().isBlank()) {
+            validName = user.getLogin();
+        } else {
+            validName = user.getName();
+        }
+
+        User validUser = User.of(
+                user.getId(),
+                validName,
+                user.getEmail(),
+                user.getLogin(),
+                user.getBirthday(),
+                validFriends
+        );
+        return userStorage.addUser(validUser);
     }
 
     public User updateUser(User user) {
-        return userStorage.updateUser(user);
+        UserValidation.validate(user);
+        // Проверка наличия user в бд
+        getUserById(user.getId());
+        // Проверка поля friends
+        Set<Long> validFriends;
+        if (user.getFriends() == null) {
+            validFriends = Set.of();
+        } else {
+            validFriends = user.getFriends();
+        }
+        // Замена пустого имени на логин
+        String validName;
+        if (user.getName() == null || user.getName().isBlank()) {
+            validName = user.getLogin();
+        } else {
+            validName = user.getName();
+        }
+
+        User validUser = User.of(
+                user.getId(),
+                validName,
+                user.getEmail(),
+                user.getLogin(),
+                user.getBirthday(),
+                validFriends
+        );
+        return userStorage.updateUser(validUser);
     }
 
     public List<User> getAllUsers() {
@@ -38,99 +89,80 @@ public class UserService {
     }
 
     public User getUserById(Long id) {
-        Optional<User> optionalUser = userStorage.getUserById(id);
-        if (optionalUser.isEmpty()) {
-            log.warn("Не удалось получить объект User по его ID - не найден в приложении");
-            throw new NotFoundException("Пользователь c ID: " + id + " не найден");
+        if (id == null) {
+            log.warn("UserService: Запрос на получение user по ID = null");
+            throw new ValidationException("UserService: user не может быть получен по ID = null");
         }
-        log.info("Объект User успешно найден по ID");
-        return optionalUser.get();
+        User user = userStorage.getUserById(id);
+        log.info("UserService: Объект user успешно найден по ID");
+        return user;
     }
 
-    public void addFriendById(Long userId, Long friendId) {
-        Optional<User> optionalUser = userStorage.getUserById(userId);
-        if (optionalUser.isEmpty()) {
-            log.warn("Не удалось добавить друга, объект User не найден в приложении");
-            throw new NotFoundException("Пользователь c ID: " + userId + " не найден");
+    public void addFriend(Long userId, Long friendId) {
+        if (userId == null || friendId == null) {
+            log.warn("UserService: Запрос на добаление друга - ID = null");
+            throw new ValidationException("UserService: друг не может быть добален ID = null");
         }
+        // Проверка наличия объектов в бд
+        User user = userStorage.getUserById(userId);
+        User friend = userStorage.getUserById(friendId);
 
-        Optional<User> optionalUserFriend = userStorage.getUserById(friendId);
-        if (optionalUserFriend.isEmpty()) {
-            log.warn("Не удалось добавить друга, объект User не найден в приложении");
-            throw new NotFoundException("Пользователь c ID: " + friendId + " не найден");
-        }
-
-        boolean isAdding1stFriend = optionalUser.get().getFriends().add(optionalUserFriend.get().getId());
-        boolean isAdding2ndFriend = optionalUserFriend.get().getFriends().add(optionalUser.get().getId());
-        if (isAdding1stFriend && isAdding2ndFriend) {
+        if (!(user.getFriends().contains(friendId))) {
+            userStorage.addFriend(userId, friendId);
             log.info("Друг успешно добавлен");
         } else {
-            log.info("Друг уже был добавлен раньше");
+            log.info("Друг был добавлен ранее");
         }
     }
 
-    public void removeFriendById(Long userId, Long friendId) {
-        Optional<User> optionalUser = userStorage.getUserById(userId);
-        if (optionalUser.isEmpty()) {
-            log.warn("Не удалось удалить друга, объект User не найден в приложении");
-            throw new NotFoundException("Пользователь c ID: " + userId + " не найден");
+    public void removeFriend(Long userId, Long friendId) {
+        if (userId == null || friendId == null) {
+            log.warn("UserService: Запрос на удаление друга  ID = null");
+            throw new ValidationException("UserService: друг не может быть удален ID = null");
         }
+        // Проверка наличия объектов в бд
+        User user = userStorage.getUserById(userId);
+        User friend = userStorage.getUserById(friendId);
 
-        Optional<User> optionalUserFriend = userStorage.getUserById(friendId);
-        if (optionalUserFriend.isEmpty()) {
-            log.warn("Не удалось удалить друга, объект User не найден в приложении");
-            throw new NotFoundException("Пользователь c ID: " + friendId + " не найден");
+        if (user.getFriends().contains(friendId)) {
+            userStorage.removeFriend(userId, friendId);
+            log.info("Друг успешно удален");
+        } else {
+            log.info("друг не может быть удален - отсутствует в списке");
         }
-
-        optionalUser.get().getFriends().remove(optionalUserFriend.get().getId());
-        optionalUserFriend.get().getFriends().remove(optionalUser.get().getId());
-        log.info("Друг успешно удален");
     }
 
     public List<User> getAllFriendsById(Long userId) {
-        Optional<User> optionalUser = userStorage.getUserById(userId);
-        if (optionalUser.isEmpty()) {
-            log.warn("Не удалось получить список друзей, объект User не найден в приложении");
-            throw new NotFoundException("Пользователь c ID: " + userId + " не найден");
+        if (userId == null) {
+            log.warn("UserService: Запрос на получение списка друзей по ID = null");
+            throw new ValidationException("UserService: список друзей не может быть получен по ID = null");
         }
+        // Проверка наличия объектов в бд
+        userStorage.getUserById(userId);
 
+        List<User> users = userStorage.getAllFriendsById(userId);
         log.info("Список всех друзей пользователя успешно сформирован");
-        List<User> users = new ArrayList<>();
-        for (Long friendId : optionalUser.get().getFriends()) {
-            Optional<User> optionalFriend = userStorage.getUserById(friendId);
-            if (optionalFriend.isPresent()) {
-                users.add(optionalFriend.get());
-            }
-        }
-        return users;
+        return List.copyOf(users);
     }
 
     public List<User> getAllCommonFriendsByIds(Long userId, Long anotherUserId) {
-        Optional<User> optionalUser = userStorage.getUserById(userId);
-        if (optionalUser.isEmpty()) {
-            log.warn("Не удалось получить список общих друзей, объект User не найден в приложении");
-            throw new NotFoundException("Пользователь c ID: " + userId + " не найден");
+        if (userId == null || anotherUserId == null) {
+            log.warn("UserService: Запрос на получение списка общих друзей ID = null");
+            throw new ValidationException("UserService: список общих друзей не может быть получен ID = null");
         }
+        // Проверка наличия объектов в бд
+        User user = userStorage.getUserById(userId);
+        User anotherUser = userStorage.getUserById(anotherUserId);
 
-        Optional<User> optionalAnotherUser = userStorage.getUserById(anotherUserId);
-        if (optionalAnotherUser.isEmpty()) {
-            log.warn("Не удалось получить список общих друзей, объект User не найден в приложении");
-            throw new NotFoundException("Пользователь c ID: " + anotherUserId + " не найден");
-        }
-
-        Set<Long> resultOfIntersection = optionalUser.get().getFriends()
+        Set<Long> resultOfIntersection = user.getFriends()
                 .stream()
-                .filter(optionalAnotherUser.get().getFriends()::contains)
+                .filter(anotherUser.getFriends()::contains)
                 .collect(Collectors.toSet());
-
-        log.info("Список всех общих друзей пользователей успешно сформирован");
-        List<User> users = new ArrayList<>();
+        List<User> commonFriends = new ArrayList<>();
         for (Long friendId : resultOfIntersection) {
-            Optional<User> optionalFriend = userStorage.getUserById(friendId);
-            if (optionalFriend.isPresent()) {
-                users.add(optionalFriend.get());
-            }
+            commonFriends.add(userStorage.getUserById(friendId));
         }
-        return users;
+        log.info("Список всех общих друзей пользователей успешно сформирован");
+        return List.copyOf(commonFriends);
     }
 }

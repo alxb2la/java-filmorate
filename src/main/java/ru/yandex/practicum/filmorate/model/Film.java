@@ -20,4 +20,6 @@ public class Film {
     LocalDate releaseDate;
     int duration;
     Set<Long> likes;
+    Set<Genre> genres;
+    MpaRating mpa;
 }
