@@ -6,7 +6,7 @@ import lombok.*;
  * Класс—модель данных приложения, дающий описание объекту жанр фильма.
  */
 @Value
-@EqualsAndHashCode(of = {"id", "name"})
+@EqualsAndHashCode(of = {"id"})
 @ToString
 @RequiredArgsConstructor(staticName = "of")
 public class Genre {

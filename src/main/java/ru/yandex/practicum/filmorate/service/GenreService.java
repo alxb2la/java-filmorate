@@ -25,7 +25,7 @@ public class GenreService {
     }
 
     public List<Genre> getAllGenres() {
-        return genreStorage.getAllGenres();
+        return List.copyOf(genreStorage.getAllGenres());
     }
 
     public Genre getGenreById(Integer id) {

@@ -25,7 +25,7 @@ public class MpaRatingService {
     }
 
     public List<MpaRating> getAllMpaRatings() {
-        return mpaRatingStorage.getAllMpaRatings();
+        return List.copyOf(mpaRatingStorage.getAllMpaRatings());
     }
 
     public MpaRating getMpaRatingById(Integer id) {

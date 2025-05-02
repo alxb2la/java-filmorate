@@ -3,7 +3,7 @@ package ru.yandex.practicum.filmorate.model;
 import lombok.*;
 
 import java.time.LocalDate;
-import java.util.Set;
+import java.util.SequencedSet;
 
 /**
  * Класс—модель данных приложения, дающий описание объекту фильм.
@@ -19,7 +19,6 @@ public class Film {
     String description;
     LocalDate releaseDate;
     int duration;
-    Set<Long> likes;
-    Set<Genre> genres;
+    SequencedSet<Genre> genres;
     MpaRating mpa;
 }

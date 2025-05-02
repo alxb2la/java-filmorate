@@ -31,7 +31,6 @@ public class ErrorHandler {
     }
 
     @ExceptionHandler
-    //@ResponseStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleHttpMediaTypeNotSupportedException(final HttpMediaTypeNotSupportedException e) {
         return new ErrorResponse("Unsupported media type", e.getMessage());

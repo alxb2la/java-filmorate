@@ -7,19 +7,23 @@ import ru.yandex.practicum.filmorate.model.MpaRating;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Set;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 
 /**
  * Класс mapper данных типа Film
  */
 @Component
 public class FilmRowMapper implements RowMapper<Film> {
-
     @Override
     public Film mapRow(ResultSet rs, int rowNum) throws SQLException {
+        Integer ratingId = rs.getInt("mpa_rating_id");
+        if (ratingId == 0) {
+            ratingId = null;
+        }
         MpaRating mpa = MpaRating.of(
-                rs.getInt("mpa_rating_id"),
-                ""
+                ratingId,
+                rs.getString("mpa_rating_name")
         );
 
         return Film.of(
@@ -28,8 +32,7 @@ public class FilmRowMapper implements RowMapper<Film> {
                 rs.getString("description"),
                 rs.getDate("release_date").toLocalDate(),
                 rs.getInt("duration"),
-                Set.of(),
-                Set.of(),
+                Collections.unmodifiableSequencedSet(new LinkedHashSet<>()),
                 mpa
         );
     }

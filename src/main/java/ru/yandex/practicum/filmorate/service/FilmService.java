@@ -7,10 +7,10 @@ import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.*;
 import ru.yandex.practicum.filmorate.storage.FilmStorage;
+import ru.yandex.practicum.filmorate.storage.UserStorage;
 import ru.yandex.practicum.filmorate.validation.FilmValidation;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * FilmService — класс, который отвечает за операции с фильмами — добавление и удаление лайка,
@@ -21,26 +21,19 @@ import java.util.stream.Collectors;
 @Slf4j
 public class FilmService {
     private final FilmStorage filmStorage;
+    private final UserStorage userStorage;
 
     @Autowired
-    public FilmService(FilmStorage filmStorage) {
+    public FilmService(FilmStorage filmStorage, UserStorage userStorage) {
         this.filmStorage = filmStorage;
+        this.userStorage = userStorage;
     }
 
     public Film addFilm(Film film) {
         FilmValidation.validate(film);
-        // Проверка полей likes, genres, mpaRating
-        Set<Long> validLikes;
-        if (film.getLikes() == null) {
-            validLikes = Set.of();
-        } else {
-            validLikes = film.getLikes();
-        }
 
-        Set<Genre> validGenres = new LinkedHashSet<>();
-        if (film.getGenres() == null) {
-            validGenres = Set.of();
-        } else {
+        SequencedSet<Genre> validGenres = new LinkedHashSet<>();
+        if ((film.getGenres() != null) && !(film.getGenres().isEmpty())) {
             for (Genre genre : film.getGenres()) {
                 if ((genre.getId() < 1) || (genre.getId() > GenreValue.values().length)) {
                     throw new NotFoundException("FilmDbService: Жанр с ID: " + genre.getId() + " не найден в приложении");
@@ -75,8 +68,7 @@ public class FilmService {
                 film.getDescription(),
                 film.getReleaseDate(),
                 film.getDuration(),
-                validLikes,
-                Collections.unmodifiableSet(validGenres),
+                Collections.unmodifiableSequencedSet(validGenres),
                 validMpaRating
         );
         return filmStorage.addFilm(validFilm);
@@ -84,20 +76,11 @@ public class FilmService {
 
     public Film updateFilm(Film film) {
         FilmValidation.validate(film);
-        // Проверка наличия фильма в бд
+        // Check Db
         getFilmById(film.getId());
-        // Проверка полей likes, genres, mpaRating
-        Set<Long> validLikes;
-        if (film.getLikes() == null) {
-            validLikes = Set.of();
-        } else {
-            validLikes = film.getLikes();
-        }
 
-        Set<Genre> validGenres = new LinkedHashSet<>();
-        if (film.getGenres() == null) {
-            validGenres = Set.of();
-        } else {
+        SequencedSet<Genre> validGenres = new LinkedHashSet<>();
+        if ((film.getGenres() != null) && !(film.getGenres().isEmpty())) {
             for (Genre genre : film.getGenres()) {
                 if ((genre.getId() < 1) || (genre.getId() > GenreValue.values().length)) {
                     throw new NotFoundException("FilmDbService: Жанр с ID: " + genre.getId() + " не найден в приложении");
@@ -132,15 +115,14 @@ public class FilmService {
                 film.getDescription(),
                 film.getReleaseDate(),
                 film.getDuration(),
-                validLikes,
-                Collections.unmodifiableSet(validGenres),
+                Collections.unmodifiableSequencedSet(validGenres),
                 validMpaRating
         );
         return filmStorage.updateFilm(validFilm);
     }
 
     public List<Film> getAllFilms() {
-        return filmStorage.getAllFilms();
+        return List.copyOf(filmStorage.getAllFilms());
     }
 
     public Film getFilmById(Long id) {
@@ -162,6 +144,10 @@ public class FilmService {
             log.warn("FilmService: Запрос на добаление лайка к фильму по ID пользователя = null");
             throw new ValidationException("FilmService: Лайк к фильму не может быть добален по ID пользователя = null");
         }
+        // check Db
+        filmStorage.getFilmById(filmId);
+        userStorage.getUserById(userId);
+
         filmStorage.addLike(filmId, userId);
         log.info("Лайк к фильму успешно добавлен");
     }
@@ -175,15 +161,15 @@ public class FilmService {
             log.warn("FilmService: Запрос на удаление лайка у фильма по ID пользователя = null");
             throw new ValidationException("FilmService: Лайк у фильма не может быть удален по ID пользователя = null");
         }
+        // check Db
+        filmStorage.getFilmById(filmId);
+        userStorage.getUserById(userId);
+
         filmStorage.removeLike(filmId, userId);
         log.info("Лайк у фильма успешно удален");
     }
 
-    public List<Film> getTopFilms(int count) {
-        return filmStorage.getAllFilms()
-                .stream()
-                .sorted(Comparator.comparing(Film::getLikes, (s1, s2) -> Integer.compare(s2.size(), s1.size())))
-                .limit(count)
-                .collect(Collectors.toList());
+    public List<Film> getTopFilms(int limit) {
+        return List.copyOf(filmStorage.getTopFilms(limit));
     }
 }

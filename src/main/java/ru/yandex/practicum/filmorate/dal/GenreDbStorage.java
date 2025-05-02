@@ -1,8 +1,10 @@
 package ru.yandex.practicum.filmorate.dal;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Primary;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
@@ -10,7 +12,6 @@ import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.GenreStorage;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Класс для взаимодействия объектов Genre с базой данных
@@ -18,22 +19,48 @@ import java.util.Optional;
 @Slf4j
 @Repository
 @Primary
-public class GenreDbStorage extends BaseDbStorage<Genre> implements GenreStorage {
-    private static final String FIND_ALL_QUERY = "SELECT * FROM genres;";
-    private static final String FIND_BY_ID_QUERY = "SELECT * FROM genres WHERE genre_id = ?;";
+public class GenreDbStorage implements GenreStorage {
+    private final JdbcOperations jdbc;
+    private final RowMapper<Genre> mapper;
 
-    public GenreDbStorage(JdbcTemplate jdbc, RowMapper<Genre> mapper) {
-        super(jdbc, mapper);
+    @Autowired
+    public GenreDbStorage(JdbcOperations jdbc, RowMapper<Genre> mapper) {
+        this.jdbc = jdbc;
+        this.mapper = mapper;
     }
 
     @Override
     public List<Genre> getAllGenres() {
-        return findMany(FIND_ALL_QUERY);
+        final String FIND_ALL_QUERY = """
+                SELECT *
+                FROM genres;
+                """;
+
+        List<Genre> genres = jdbc.query(FIND_ALL_QUERY, mapper);
+        if (genres == null || genres.isEmpty()) {
+            return List.of();
+        }
+        return genres;
     }
 
     @Override
     public Genre getGenreById(Integer id) {
-        Optional<Genre> optionalGenre = findOne(FIND_BY_ID_QUERY, id);
-        return optionalGenre.orElseThrow(() -> new NotFoundException("Жанр c ID: " + id + " не найден"));
+        final String FIND_BY_ID_QUERY = """
+                SELECT *
+                FROM genres
+                WHERE genre_id = ?;
+                """;
+
+        Genre genre;
+        try {
+            genre = jdbc.queryForObject(FIND_BY_ID_QUERY, mapper, id);
+        } catch (EmptyResultDataAccessException ignored) {
+            genre = null;
+        }
+        if (genre == null) {
+            log.warn("GenreDbStorage: Не удалось получить объект Genre по его ID - не найден в приложении");
+            throw new NotFoundException("GenreDbStorage: Жанр c ID: " + id + " не найден в приложении");
+        }
+        return genre;
     }
 }
